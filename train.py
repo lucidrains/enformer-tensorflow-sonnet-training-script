@@ -255,10 +255,7 @@ def get_positional_feature_function(name):
   available = {
       'positional_features_exponential': positional_features_exponential,
       'positional_features_central_mask': positional_features_central_mask,
-      'positional_features_gamma': positional_features_gamma,
-      'positional_features_cosine': positional_features_cosine,
-      'positional_features_linear_masks': positional_features_linear_masks,
-      'positional_features_sin_cos': positional_features_sin_cos,
+      'positional_features_gamma': positional_features_gamma
   }
   if name not in available:
     raise ValueError(f'Function {name} not available in {available.keys()}')
@@ -410,62 +407,6 @@ def positional_features_gamma(positions: tf.Tensor,
       concentration, rate)
   probabilities += 1e-8  # To ensure numerical stability.
   outputs = probabilities / tf.reduce_max(probabilities)
-  tf.TensorShape(outputs.shape).assert_is_compatible_with(
-      positions.shape + [feature_size])
-  return outputs
-
-
-def positional_features_cosine(positions: tf.Tensor,
-                               feature_size: int,
-                               seq_length: Optional[int] = None,
-                               bin_size: Optional[int] = None):
-  """Cosine positional features."""
-  del bin_size  # Unused.
-  del seq_length  # Unused.
-  periodicity = 1.25 * tf.pow(2.0, tf.range(0, feature_size, dtype=tf.float32))
-  periodicity = _prepend_dims(periodicity, positions.shape.rank)
-
-  outputs = tf.math.cos(2 * np.pi * positions[..., tf.newaxis] / periodicity)
-  tf.TensorShape(outputs.shape).assert_is_compatible_with(
-      positions.shape + [feature_size])
-  return outputs
-
-
-def positional_features_linear_masks(positions: tf.Tensor,
-                                     feature_size: int,
-                                     seq_length: Optional[int] = None,
-                                     bin_size: Optional[int] = None):
-  """Exponentially increasing point focuses."""
-  del bin_size  # Unused.
-  del seq_length  # Unused.
-  distances = tf.range(0, feature_size, dtype=tf.float32)
-  distances = _prepend_dims(distances, positions.shape.rank)
-  outputs = tf.cast(distances == tf.abs(positions[..., tf.newaxis]),
-                    dtype=tf.float32)
-
-  tf.TensorShape(outputs.shape).assert_is_compatible_with(
-      positions.shape + [feature_size])
-  return outputs
-
-
-def positional_features_sin_cos(positions: tf.Tensor,
-                                feature_size: int,
-                                seq_length: Optional[int] = None,
-                                bin_size: Optional[int] = None,
-                                max_time=10000.0):
-  """Sine/cosine positional encodings."""
-  del bin_size  # Unused.
-  del seq_length  # Unused.
-  if feature_size % 2 != 0:
-    raise ValueError('feature_size needs to be divisible by 2.')
-  i = tf.range(0, feature_size, 2, dtype=tf.float32)
-  i = _prepend_dims(i, positions.shape.rank)
-
-  # Concat sines and cosines and return.
-  outputs = tf.concat([
-      tf.sin(positions[..., tf.newaxis] / max_time**(i / feature_size)),
-      tf.cos(positions[..., tf.newaxis] / max_time**(i / feature_size))], -1)
-
   tf.TensorShape(outputs.shape).assert_is_compatible_with(
       positions.shape + [feature_size])
   return outputs
