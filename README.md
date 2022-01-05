@@ -1,6 +1,17 @@
 ## Enformer TPU training script (wip)
 
-The full training script for Enformer (Tensorflow Sonnet) on TPU clusters
+The full training script for Enformer (Tensorflow Sonnet) on TPU clusters, in an effort to migrate the model to <a href="https://github.com/lucidrains/enformer-pytorch">pytorch</a>.
+
+This was pieced together from the <a href="https://github.com/deepmind/deepmind-research/tree/master/enformer">Deepmind Enformer repository</a>, the <a href="https://colab.research.google.com/github/deepmind/deepmind_research/blob/master/enformer/enformer-training.ipynb">colab training notebook</a>, as well as <a href="https://github.com/calico/basenji/blob/84c681a4b02f592a3de90799cee7f17d96f81ef8/basenji/archive/augmentation.py">Basenji sequence augmentation code</a>
+
+It accounts for:
+
+1. distributed TPU training
+2. distributed datasets
+3. distributed validation
+4. gradient clipping
+5. cross replica batchnorms
+6. dataset augmentation
 
 ## Citations
 
