@@ -13,6 +13,10 @@ It accounts for:
 5. cross replica batchnorms
 6. dataset augmentation
 
+## Todo
+
+- [ ] fix script for differences in sequence length in basenji training data, which is ~130k vs ~190k bp as in paper
+
 ## Citations
 
 ```bibtex
