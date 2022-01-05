@@ -1,0 +1,6 @@
+dm-sonnet
+numpy
+pandas
+tensorflow==2.6
+tqdm
+wandb
