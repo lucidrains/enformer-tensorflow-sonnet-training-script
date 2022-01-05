@@ -13,6 +13,8 @@ It accounts for:
 5. cross replica batchnorms
 6. dataset augmentation
 
+Training takes about 3 days on v3-64
+
 ## Todo
 
 - [ ] fix script for differences in sequence length in basenji training data, which is ~130k vs ~190k bp as in paper
