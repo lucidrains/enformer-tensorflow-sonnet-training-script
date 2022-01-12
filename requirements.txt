@@ -1,6 +1,7 @@
 dm-sonnet
 numpy
 pandas
+pyfaidx
 tensorflow==2.6
 tqdm
 wandb
