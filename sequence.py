@@ -7,6 +7,7 @@ from functools import partial
 from random import randrange
 
 # efficient way for one hot encoding DNA sequence from string
+# modified from https://gist.github.com/hannes-brt/54ca5d4094b3d96237fa2e820c0945dd
 
 embed = np.zeros([89, 4], np.float32)
 embed[ord('A')] = np.array([1, 0, 0, 0])
