@@ -46,10 +46,16 @@ def get_datum(
 
   if rand_shift_range is not None:
     min_shift, max_shift = rand_shift_range
-    min_shift = max(start + min_shift, 0) - start
-    max_shift = min(end + max_shift, chromosome_length) - end
-    start += min_shift
-    end += max_shift
+    max_shift += 1
+
+    adj_min_shift = max(start + min_shift, 0) - start
+    adj_max_shift = min(end + max_shift, chromosome_length) - end
+
+    left_padding = adj_min_shift - min_shift
+    right_padding = max_shift - adj_max_shift
+
+    start += adj_min_shift
+    end += adj_max_shift
 
   if context_length is None or context_length <= interval_length:
     seq = chromosome[start:end]
