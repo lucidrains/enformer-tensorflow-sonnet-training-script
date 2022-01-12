@@ -52,7 +52,8 @@ def get_datum(
     end += max_shift
 
   if context_length is None or context_length <= interval_length:
-    return one_hot_encode_dna(chromosome[start:end], embed)
+    seq = chromosome[start:end]
+    return one_hot_encode_seq(seq, embed)
 
   left_padding = right_padding = 0
   
@@ -73,7 +74,7 @@ def get_datum(
     end = chromosome_length
 
   seq = ('.' * left_padding) + str(chromosome[start:end]) + ('.' * right_padding)
-  return one_hot_encode_dna(seq, embed)
+  return one_hot_encode_seq(seq, embed)
 
 def get_dna_sample(
   bed_file,
@@ -91,14 +92,14 @@ def get_dna_sample(
   yield_data_fn = partial(get_datum, fasta_ref = fasta, bed_df = df, context_length = context_length, rand_shift_range = rand_shift_range)
 
   def inner():
-    for ind in range(len(human_df)):
+    for ind in range(len(df)):
       yield yield_data_fn(ind)
 
   return inner
 
 # main function
 
-if __name__ == '__main__'
+if __name__ == '__main__':
 
   generator_fn = get_dna_sample(
     bed_file = './human-sequences.bed',
