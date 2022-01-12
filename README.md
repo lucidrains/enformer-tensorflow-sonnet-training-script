@@ -15,6 +15,15 @@ It accounts for:
 
 Training takes about 3 days on v3-64
 
+## Downloading sequence data for extending context length to 196,608
+
+```bash
+$ gsutil cp gs://basenji_barnyard/hg38.ml.fa.gz ./ && gunzip hg38.ml.fa.gz
+$ gsutil cp gs://basenji_barnyard/mm10.ml.fa.gz ./ && gunzip gunzip mm10.ml.fa.gz
+$ gsutil cp gs://basenji_barnyard/data/human/sequences.bed ./human-sequences.bed
+$ gsutil cp gs://basenji_barnyard/data/mouse/sequences.bed ./mouse-sequences.bed
+```
+
 ## Todo
 
 - [ ] fix script for differences in sequence length in basenji training data, which is ~130k vs ~190k bp as in paper
