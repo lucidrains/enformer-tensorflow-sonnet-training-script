@@ -19,7 +19,7 @@ Training takes about 3 days on v3-64
 
 ```bash
 $ gsutil cp gs://basenji_barnyard/hg38.ml.fa.gz ./ && gunzip hg38.ml.fa.gz
-$ gsutil cp gs://basenji_barnyard/mm10.ml.fa.gz ./ && gunzip gunzip mm10.ml.fa.gz
+$ gsutil cp gs://basenji_barnyard/mm10.ml.fa.gz ./ && gunzip mm10.ml.fa.gz
 $ gsutil cp gs://basenji_barnyard/data/human/sequences.bed ./human-sequences.bed
 $ gsutil cp gs://basenji_barnyard/data/mouse/sequences.bed ./mouse-sequences.bed
 ```
