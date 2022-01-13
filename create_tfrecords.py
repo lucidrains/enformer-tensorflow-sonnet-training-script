@@ -84,7 +84,7 @@ def map_seq_target(
 
 def create_tfrecords(ds, path = './', chunk_size = 256):
   for ind, batch in enumerate(chunk(iter(ds), chunk_size)):
-    writer = tf.io.TFRecordWriter(f'{path}{ind}.tfrecord')
+    writer = tf.io.TFRecordWriter(f'{path}{ind}.tfrecord', 'ZLIB')
 
     for seq, target in batch:
       features = parse_single_example(seq, target)
