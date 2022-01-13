@@ -2,6 +2,46 @@ from itertools import islice
 from functools import partial
 import tensorflow as tf
 
+# old get_dataset functions, but only returning labels to zip in new longer sequneces
+
+def organism_path(organism):
+    return os.path.join(f'gs://basenji_barnyard/data', organism)
+
+def get_dataset(organism, subset, num_threads=8):
+  metadata = get_metadata(organism)
+  dataset = tf.data.TFRecordDataset(files,
+                                    compression_type='ZLIB',
+                                    num_parallel_reads=None)
+
+  dataset = dataset.map(functools.partial(deserialize, metadata=metadata),
+                        num_parallel_calls=num_threads)
+  return dataset
+
+def get_metadata(organism):
+  path = os.path.join(organism_path(organism), 'statistics.json')
+  with tf.io.gfile.GFile(path, 'r') as f:
+    return json.load(f)
+
+def tfrecord_files(organism, subset):
+  return sorted(tf.io.gfile.glob(os.path.join(
+      organism_path(organism), 'tfrecords', f'{subset}-*.tfr'
+  )), key=lambda x: int(x.split('-')[-1].split('.')[0]))
+
+def deserialize(serialized_example, metadata):
+  feature_map = {
+      'sequence': tf.io.FixedLenFeature([], tf.string),
+      'target': tf.io.FixedLenFeature([], tf.string),
+  }
+  example = tf.io.parse_example(serialized_example, feature_map)
+  target = tf.io.decode_raw(example['target'], tf.float16)
+  target = tf.reshape(target,
+                      (metadata['target_length'], metadata['num_targets']))
+  target = tf.cast(target, tf.float32)
+
+  return target
+
+# tfrecord functions
+
 def chunk(it, size):
     it = iter(it)
     return iter(lambda: tuple(islice(it, size)), ())
@@ -53,6 +93,22 @@ def create_tfrecords(ds, path = './', chunk_size = 256):
     writer.close()
 
 if __name__ == '__main__':
+
+  # writing example
+
+  generator_fn = get_dna_sample(
+    bed_file = './human-sequences.bed',
+    fasta_file = './hg38.ml.fa',
+    filter_type = 'train',
+    context_length = 196_608
+  )
+
+  seq_ds = tf.data.Dataset.from_generator(generator_fn, tf.float32)
+  zipped_ds = tf.data.Dataset.zip((seq_ds, label_ds))
+  create_tfrecords(zipped_ds, 'gs://enformer-new-data-path/')
+
+  # reading
+
   dataset = tf.data.TFRecordDataset(['./0.tfrecord', './1.tfrecord'])
   map_element_fn = partial(map_seq_target, seq_len = 196608, species = 'human', shifts = (-2, 2))
   dataset = dataset.map(map_element_fn)

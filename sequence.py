@@ -46,7 +46,6 @@ def get_datum(
 
   if rand_shift_range is not None:
     min_shift, max_shift = rand_shift_range
-    max_shift += 1
 
     adj_min_shift = max(start + min_shift, 0) - start
     adj_max_shift = min(end + max_shift, chromosome_length) - end
