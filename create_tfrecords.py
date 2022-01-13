@@ -5,10 +5,11 @@ import tensorflow as tf
 # old get_dataset functions, but only returning labels to zip in new longer sequneces
 
 def organism_path(organism):
-    return os.path.join(f'gs://basenji_barnyard/data', organism)
+  return os.path.join(f'gs://basenji_barnyard/data', organism)
 
 def get_dataset(organism, subset, num_threads=8):
   metadata = get_metadata(organism)
+  files = tfrecord_files(organism, subset)
   dataset = tf.data.TFRecordDataset(files,
                                     compression_type='ZLIB',
                                     num_parallel_reads=None)
@@ -29,13 +30,12 @@ def tfrecord_files(organism, subset):
 
 def deserialize(serialized_example, metadata):
   feature_map = {
-      'sequence': tf.io.FixedLenFeature([], tf.string),
-      'target': tf.io.FixedLenFeature([], tf.string),
+    'sequence': tf.io.FixedLenFeature([], tf.string),
+    'target': tf.io.FixedLenFeature([], tf.string),
   }
   example = tf.io.parse_example(serialized_example, feature_map)
   target = tf.io.decode_raw(example['target'], tf.float16)
-  target = tf.reshape(target,
-                      (metadata['target_length'], metadata['num_targets']))
+  target = tf.reshape(target, (metadata['target_length'], metadata['num_targets']))
   target = tf.cast(target, tf.float32)
 
   return target
@@ -43,8 +43,8 @@ def deserialize(serialized_example, metadata):
 # tfrecord functions
 
 def chunk(it, size):
-    it = iter(it)
-    return iter(lambda: tuple(islice(it, size)), ())
+  it = iter(it)
+  return iter(lambda: tuple(islice(it, size)), ())
 
 def _float_feature(value):
   return tf.train.Feature(float_list=tf.train.FloatList(value=value))
@@ -64,10 +64,10 @@ def parse_single_example(seq, target):
 NUM_TRACKS_CONFIG = dict(human = 5313, mouse = 1643)
 
 def map_seq_target(
-    element,
-    seq_len,
-    species,  # 'human' or 'mouse'
-    shifts = None
+  element,
+  seq_len,
+  species,  # 'human' or 'mouse'
+  shifts = None
 ):
   assert species in NUM_TRACKS_CONFIG, f'{species} not found in config'
   num_tracks = NUM_TRACKS_CONFIG[species]
@@ -104,11 +104,13 @@ if __name__ == '__main__':
   )
 
   seq_ds = tf.data.Dataset.from_generator(generator_fn, tf.float32)
+  label_ds = get_dataset('human', 'train')
+
   zipped_ds = tf.data.Dataset.zip((seq_ds, label_ds))
   create_tfrecords(zipped_ds, 'gs://enformer-new-data-path/')
 
   # reading
 
-  dataset = tf.data.TFRecordDataset(['./0.tfrecord', './1.tfrecord'])
+  dataset = tf.data.TFRecordDataset(['./0.tfrecord', './1.tfrecord'], compression_type = 'ZLIB')
   map_element_fn = partial(map_seq_target, seq_len = 196608, species = 'human', shifts = (-2, 2))
   dataset = dataset.map(map_element_fn)
