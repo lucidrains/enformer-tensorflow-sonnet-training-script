@@ -869,7 +869,8 @@ def new_dataset_map_seq_target(
   seq_len,
   species,  # 'human' or 'mouse'
   target_length = 896,
-  shifts = None
+  shifts = None,
+  augment_rc = False
 ):
   assert species in NUM_TRACKS_CONFIG, f'{species} not found in config'
   num_tracks = NUM_TRACKS_CONFIG[species]
@@ -882,21 +883,32 @@ def new_dataset_map_seq_target(
   }
 
   content = tf.io.parse_single_example(element, data)
-  content['seq'] = tf.reshape(content['seq'], (-1, 4))
+
+  content['sequence'] = content.pop('seq')
+  content['sequence'] = tf.reshape(content['sequence'], (-1, 4))
   content['target'] = tf.reshape(content['target'], (target_length, -1))
 
   # take care of shift augmentation
 
   shifts = tf.pad(tf.random.uniform(shape = [1], minval = 0, maxval = num_shifts, dtype = tf.int64), [[0, 1]])
-  content['seq'] = tf.slice(content['seq'], shifts, (seq_len, -1))
+  content['sequence'] = tf.slice(content['sequence'], shifts, (seq_len, -1))
+
+  if augment_rc:
+    content = augment_stochastic_rc_map_fn(content)
+
   return content
 
-def get_dataset_new(organism, datatype):
+def get_dataset_new(
+  organism,
+  datatype,
+  shifts = (-2, 2),
+  augment_rc = False
+):
   gcs_path = NEW_TFRECORD_LOCATIONS[organism][datatype]
-  files = sorted(tf.io.gfile.glob(gcs_path))
+  files = sorted(tf.io.gfile.glob(f'{gcs_path}*.tfrecord'))
 
   dataset = tf.data.TFRecordDataset(files, compression_type = 'ZLIB')
-  map_element_fn = partial(map_seq_target, seq_len = SEQUENCE_LENGTH, species = organism, shifts = (-2, 2))
+  map_element_fn = partial(new_dataset_map_seq_target, seq_len = SEQUENCE_LENGTH, species = organism, shifts = shifts, augment_rc = augment_rc)
   dataset = dataset.map(map_element_fn)
   return dataset
 
