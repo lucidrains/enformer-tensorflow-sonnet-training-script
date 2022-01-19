@@ -896,6 +896,9 @@ def new_dataset_map_seq_target(
   if augment_rc:
     content = augment_stochastic_rc_map_fn(content)
 
+  content['sequence'].set_shape(tf.TensorShape([seq_len, 4]))
+  content['target'].set_shape(tf.TensorShape([target_length, num_tracks]))
+
   return content
 
 def get_dataset_new(
