@@ -43,8 +43,8 @@ import wandb
 NUM_CORES_ENFORCE = 64  # using v3-64
 
 SEQUENCE_LENGTH = 196_608
-BIN_SIZE = 128
 TARGET_LENGTH = 896
+BIN_SIZE = 128
 
 # assert TPUs
 
@@ -848,6 +848,57 @@ def deserialize(serialized_example, metadata):
 
   return {'sequence': sequence,
           'target': target}
+
+# new get_dataset, for sequences that are actually 196_608
+
+NEW_TFRECORD_LOCATIONS = dict(
+  human = dict(
+    train = 'gs://enformer-human-train/',
+    valid = 'gs://enformer-human-valid/'
+  ),
+  mouse = dict(
+    train = 'gs://enformer-mouse-train/',
+    valid = 'gs://enformer-mouse-valid/'
+  )
+)
+
+NUM_TRACKS_CONFIG = dict(human = 5313, mouse = 1643)
+
+def new_dataset_map_seq_target(
+  element,
+  seq_len,
+  species,  # 'human' or 'mouse'
+  target_length = 896,
+  shifts = None
+):
+  assert species in NUM_TRACKS_CONFIG, f'{species} not found in config'
+  num_tracks = NUM_TRACKS_CONFIG[species]
+
+  num_shifts = 0 if shifts is None else len(list(range(shifts[0], shifts[1] + 1)))
+
+  data = {
+    'seq': tf.io.FixedLenFeature([(seq_len + num_shifts) * 4], tf.float32),
+    'target': tf.io.FixedLenFeature([target_length * num_tracks], tf.float32),
+  }
+
+  content = tf.io.parse_single_example(element, data)
+  content['seq'] = tf.reshape(content['seq'], (-1, 4))
+  content['target'] = tf.reshape(content['target'], (target_length, -1))
+
+  # take care of shift augmentation
+
+  shifts = tf.pad(tf.random.uniform(shape = [1], minval = 0, maxval = num_shifts, dtype = tf.int64), [[0, 1]])
+  content['seq'] = tf.slice(content['seq'], shifts, (seq_len, -1))
+  return content
+
+def get_dataset_new(organism, datatype):
+  gcs_path = NEW_TFRECORD_LOCATIONS[organism][datatype]
+  files = sorted(tf.io.gfile.glob(gcs_path))
+
+  dataset = tf.data.TFRecordDataset(files, compression_type = 'ZLIB')
+  map_element_fn = partial(map_seq_target, seq_len = SEQUENCE_LENGTH, species = organism, shifts = (-2, 2))
+  dataset = dataset.map(map_element_fn)
+  return dataset
 
 # training related functions
 
