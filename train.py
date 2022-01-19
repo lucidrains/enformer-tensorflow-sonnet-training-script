@@ -902,12 +902,13 @@ def get_dataset_new(
   organism,
   datatype,
   shifts = (-2, 2),
-  augment_rc = False
+  augment_rc = False,
+  num_threads = 8
 ):
   gcs_path = NEW_TFRECORD_LOCATIONS[organism][datatype]
   files = sorted(tf.io.gfile.glob(f'{gcs_path}*.tfrecord'))
 
-  dataset = tf.data.TFRecordDataset(files, compression_type = 'ZLIB')
+  dataset = tf.data.TFRecordDataset(files, compression_type = 'ZLIB', num_parallel_reads = num_threads)
   map_element_fn = partial(new_dataset_map_seq_target, seq_len = SEQUENCE_LENGTH, species = organism, shifts = shifts, augment_rc = augment_rc)
   dataset = dataset.map(map_element_fn)
   return dataset
