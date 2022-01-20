@@ -942,7 +942,9 @@ def create_step_function(model, optimizer, head, clip_grad_norm = 1.0, weight_de
   @tf.function
   def train_step(batch_seq, batch_target):
     with tf.GradientTape() as tape:
-      outputs = model(batch_seq, is_training=True)[head]
+      with snt.mixed_precision.scope(tf.float16):
+        outputs = model(batch_seq, is_training=True)[head]
+
       corr_coef_loss = 1 - corr_coef(outputs, batch_target) 
       poisson = tf.reduce_mean(
           tf.keras.losses.poisson(batch_target, outputs))
