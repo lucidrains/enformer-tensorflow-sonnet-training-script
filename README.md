@@ -26,7 +26,7 @@ $ gsutil cp gs://basenji_barnyard/data/mouse/sequences.bed ./mouse-sequences.bed
 
 ## Todo
 
-- [ ] fix script for differences in sequence length in basenji training data, which is ~130k vs ~190k bp as in paper
+- [x] fix script for differences in sequence length in basenji training data, which is ~130k vs ~190k bp as in paper - Training in progress
 
 ## Citations
 
