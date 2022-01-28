@@ -72,6 +72,8 @@ def adam_update(g, alpha, beta_1, beta_2, epsilon, t, m, v):
   update = alpha * m_hat / (tf.sqrt(v_hat) + epsilon)
   return update, m, v
 
+# https://github.com/deepmind/sonnet/blob/v2/sonnet/src/optimizers/adam.py
+# modified for Adam with decoupled weight decay
 
 class Adam(base.Optimizer):
   def __init__(self,
