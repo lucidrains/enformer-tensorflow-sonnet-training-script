@@ -1,4 +1,5 @@
 dm-sonnet
+einops
 numpy
 pandas
 pyfaidx

@@ -20,14 +20,19 @@ import json
 import functools
 import inspect
 from pathlib import Path
+from einops.layers.tensorflow import Rearrange
 
 import tensorflow as tf
-import sonnet as snt
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from typing import Any, Callable, Dict, Optional, Text, Union, Iterable, List
+from typing import Any, Callable, Dict, Optional, Text, Union, Iterable, List, Sequence
 
+import sonnet as snt
+from sonnet.src import base, once, types, utils
+from sonnet.src.optimizers import optimizer_utils
+
+import tensorflow as tf
 import wandb
 
 # attribute
@@ -55,6 +60,79 @@ tpu_strategy = snt.distribute.TpuReplicator(tpu)
 
 num_cores =  tpu_strategy.num_replicas_in_sync
 assert num_cores == NUM_CORES_ENFORCE, f'must betraining on {num_cores} cores'
+
+# optimizer
+
+def adam_update(g, alpha, beta_1, beta_2, epsilon, t, m, v):
+  """Implements 'Algorithm 1' from :cite:`kingma2014adam`."""
+  m = beta_1 * m + (1. - beta_1) * g      # Biased first moment estimate.
+  v = beta_2 * v + (1. - beta_2) * g * g  # Biased second raw moment estimate.
+  m_hat = m / (1. - tf.pow(beta_1, t))    # Bias corrected 1st moment estimate.
+  v_hat = v / (1. - tf.pow(beta_2, t))    # Bias corrected 2nd moment estimate.
+  update = alpha * m_hat / (tf.sqrt(v_hat) + epsilon)
+  return update, m, v
+
+
+class Adam(base.Optimizer):
+  def __init__(self,
+               learning_rate: Union[types.FloatLike, tf.Variable] = 0.001,
+               beta1: Union[types.FloatLike, tf.Variable] = 0.9,
+               beta2: Union[types.FloatLike, tf.Variable] = 0.999,
+               epsilon: Union[types.FloatLike, tf.Variable] = 1e-8,
+               weight_decay: Union[types.FloatLike, tf.Variable] = 1e-4,
+               name: Optional[str] = None):
+    super().__init__(name=name)
+    self.learning_rate = learning_rate
+    self.beta1 = beta1
+    self.beta2 = beta2
+    self.epsilon = epsilon
+    self.weight_decay = weight_decay
+    # TODO(petebu): Consider allowing the user to pass in a step.
+    self.step = tf.Variable(0, trainable=False, name="t", dtype=tf.int64)
+    self.m = []
+    self.v = []
+
+  @once.once
+  def _initialize(self, parameters: Sequence[tf.Variable]):
+    """First and second order moments are initialized to zero."""
+    zero_var = lambda p: utils.variable_like(p, trainable=False)
+    with tf.name_scope("m"):
+      self.m.extend(zero_var(p) for p in parameters)
+    with tf.name_scope("v"):
+      self.v.extend(zero_var(p) for p in parameters)
+
+  def apply(self, updates: Sequence[types.ParameterUpdate],
+            parameters: Sequence[tf.Variable]):
+    optimizer_utils.check_distribution_strategy()
+    optimizer_utils.check_updates_parameters(updates, parameters)
+    self._initialize(parameters)
+    self.step.assign_add(1)
+    for update, param, m_var, v_var in zip(updates, parameters, self.m, self.v):
+      if update is None:
+        continue
+
+      optimizer_utils.check_same_dtype(update, param)
+      learning_rate = tf.cast(self.learning_rate, update.dtype)
+      beta_1 = tf.cast(self.beta1, update.dtype)
+      beta_2 = tf.cast(self.beta2, update.dtype)
+      epsilon = tf.cast(self.epsilon, update.dtype)
+      step = tf.cast(self.step, update.dtype)
+
+      update, m, v = adam_update(
+        g=update, alpha=learning_rate, beta_1=beta_1, beta_2=beta_2,
+        epsilon=epsilon, t=step, m=m_var, v=v_var)
+
+      # decoupled weight decay
+      # hack for now to exclude biases
+      weight_decay_update = (param * self.weight_decay * learning_rate) if 'w:0' in param.name else 0
+
+      param.assign_sub(update)
+
+      if weight_decay_update != 0:
+        param.assign_sub(weight_decay_update)
+
+      m_var.assign(m)
+      v_var.assign(v)
 
 # classes
 
@@ -419,6 +497,7 @@ class Enformer(snt.Module):
                num_transformer_layers: int = 11,
                num_heads: int = 8,
                pooling_type: str = 'attention',
+               use_convnext: bool = False,
                name: str = 'enformer'):
     """Enformer model.
 
@@ -474,6 +553,19 @@ class Enformer(snt.Module):
           gelu,
           snt.Conv1D(filters, width, w_init=w_init, **kwargs)
       ], name=name)
+
+    def convnext_block(filters, width=1, mult = 4, ds_conv_kernel_size = 7, w_init=None, name='convnext_block', **kwargs):
+      return Sequential(lambda: [
+          Rearrange('b n d -> b n 1 d'),
+          snt.DepthwiseConv2D((ds_conv_kernel_size, 1), name ='convnext_ds_conv'),
+          Rearrange('b n 1 d -> b n d'),
+          snt.LayerNorm(axis=-1, create_scale=True, create_offset=True),
+          snt.Linear(filters * mult, name='convnext_project_in'),
+          tf.nn.relu,
+          snt.Linear(filters, name='convnext_project_out')
+      ], name=name)
+
+    conv_block_fn = convnext_block if use_convnext else conv_block
 
     stem = Sequential(lambda: [
         snt.Conv1D(channels // 2, 15),
