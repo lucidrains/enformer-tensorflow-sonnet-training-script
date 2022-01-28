@@ -875,10 +875,8 @@ def augment_stochastic_shifts_map_fn(datum):
 def augment_stochastic_rc_map_fn(datum):
   sequence, target = (datum['sequence'], datum['target'])
   augment = tf.random.uniform(shape=[]) > 0.5
-  sequence = tf.cond(augment, lambda: reverse_complement_transform(sequence),
-                              lambda: sequence)
-  target = tf.cond(augment, lambda: tf.reverse(target, axis=[0]),
-                            lambda: target)
+  sequence, target = tf.cond(augment, lambda: (sequence[::-1, ::-1], target[::-1, :]),
+                              lambda: (sequence, target))
   return dict(sequence = sequence, target = target)
 
 
