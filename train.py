@@ -125,12 +125,10 @@ class Adam(base.Optimizer):
 
       # decoupled weight decay
       # hack for now to exclude biases
-      weight_decay_update = (param * self.weight_decay * learning_rate) if 'w:0' in param.name else 0
+      weight_decay_update = (param * self.weight_decay * learning_rate) if 'w:0' in param.name else tf.zeros_like(param)
 
       param.assign_sub(update)
-
-      if weight_decay_update != 0:
-        param.assign_sub(weight_decay_update)
+      param.assign_sub(weight_decay_update)
 
       m_var.assign(m)
       v_var.assign(v)
