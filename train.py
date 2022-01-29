@@ -20,7 +20,6 @@ import json
 import functools
 import inspect
 from pathlib import Path
-from einops.layers.tensorflow import Rearrange
 
 import tensorflow as tf
 from tqdm import tqdm
@@ -558,9 +557,9 @@ class Enformer(snt.Module):
 
     def convnext_block(filters, width=1, mult = 4, ds_conv_kernel_size = 7, w_init=None, name='convnext_block', **kwargs):
       return Sequential(lambda: [
-          Rearrange('b n d -> b n 1 d'),
+          ExpandDims(2),
           snt.DepthwiseConv2D((ds_conv_kernel_size, 1), name ='convnext_ds_conv'),
-          Rearrange('b n 1 d -> b n d'),
+          Squeeze(2),
           snt.LayerNorm(axis=-1, create_scale=True, create_offset=True),
           snt.Linear(filters * mult, name='convnext_project_in'),
           tf.nn.relu,
@@ -670,6 +669,23 @@ class TargetLengthCrop1D(snt.Module):
 
     return inputs[..., trim:-trim, :]
 
+class ExpandDims(snt.Module):
+
+  def __init__(self, dim: int, name='expand_dims'):
+    super().__init__(name=name)
+    self._dim = dim
+
+  def __call__(self, inputs):
+    return tf.expand_dims(inputs, self._dim)
+
+class Squeeze(snt.Module):
+
+  def __init__(self, dim: int, name='squeeze'):
+    super().__init__(name=name)
+    self._dim = dim
+
+  def __call__(self, inputs):
+    return tf.squeeze(inputs, self._dim)
 
 class Sequential(snt.Module):
   """snt.Sequential automatically passing is_training where it exists."""
