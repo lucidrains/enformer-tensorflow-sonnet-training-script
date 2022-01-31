@@ -1024,7 +1024,7 @@ def get_dataset_new(
 
 # training related functions
 
-def corr_coef(x, y):
+def corr_coef(x, y, eps = 0):
   x2 = tf.math.square(x)
   y2 = tf.math.square(y)
   xy = x * y
@@ -1033,7 +1033,7 @@ def corr_coef(x, y):
   exy = tf.reduce_mean(xy, axis = 1)
   ex2 = tf.reduce_mean(x2, axis = 1)
   ey2 = tf.reduce_mean(y2, axis = 1)
-  r = (exy - ex * ey) / ((tf.math.sqrt(ex2 - tf.math.square(ex)) * tf.math.sqrt(ey2 - tf.math.square(ey))) + 1e-8)
+  r = (exy - ex * ey) / ((tf.math.sqrt(ex2 - tf.math.square(ex) + eps) * tf.math.sqrt(ey2 - tf.math.square(ey) + eps)) + eps)
   return tf.reduce_mean(r, axis = -1)
 
 def create_eval_step(model, head):
@@ -1051,7 +1051,7 @@ def create_step_function(model, optimizer, head, clip_grad_norm = 1.0, weight_de
       with snt.mixed_precision.scope(tf.float16):
         outputs = model(batch_seq, is_training=True)[head]
 
-      corr_coef_loss = 1 - corr_coef(outputs, batch_target) 
+      corr_coef_loss = 1 - corr_coef(outputs, batch_target, eps = 1e-8)
       poisson = tf.reduce_mean(
           tf.keras.losses.poisson(batch_target, outputs))
       loss = poisson
