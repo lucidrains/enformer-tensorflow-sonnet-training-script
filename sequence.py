@@ -93,7 +93,7 @@ def get_dna_sample(
   if filter_type is not None:
     df = df[df[3] == filter_type]
 
-  fasta = Fasta(fasta_file)
+  fasta = Fasta(fasta_file, sequence_always_upper = True)
   yield_data_fn = partial(get_datum, fasta_ref = fasta, bed_df = df, context_length = context_length, rand_shift_range = rand_shift_range)
 
   def inner():
